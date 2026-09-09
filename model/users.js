@@ -7,20 +7,24 @@ const {db, transaction} = require("../modules/db");
 const getFooBar = async ({ limit = 10, offset = 0, userId = null } = {}) => {
   let sql = `
       SELECT
-          *
+          b.id,
+          b.foo_id,
+          b.comment,
+          b.created_at,
+          f.message
       FROM bar b
                LEFT JOIN foo f ON b.foo_id = f.id
   `;
 
   const params = [];
 
-  if (userId) {
+  if (userId !== null) {
     sql += ' WHERE b.id = ?';
     params.push(userId);
   }
 
   sql += ' ORDER BY b.created_at DESC LIMIT ? OFFSET ?';
-  params.push(String(limit), String(offset));
+  params.push(limit, offset);
 
   return await db(sql, params);
 };

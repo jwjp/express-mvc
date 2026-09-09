@@ -1,6 +1,8 @@
 const express = require('express');
+const { body, param, query, matchedData } = require('express-validator');
 const router = express.Router();
 const { getFooBar, getTotalCount, createFoobar } = require('../model/users');
+const { validate } = require('../middleware/validate');
 
 /**
  * GET /
@@ -12,10 +14,12 @@ router.get('/', function(req, res, next) {
 /**
  * GET /users/sample
  */
-router.get('/sample', async (req, res, next) => {
+router.get('/sample', validate([
+  query('page').optional().isInt({ min: 1 }).toInt(),
+  query('limit').optional().isInt({ min: 1, max: 100 }).toInt()
+]), async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
+    const { page = 1, limit = 10 } = matchedData(req, { locations: ['query'] });
     const offset = (page - 1) * limit;
 
     // 함수를 직접 호출
@@ -41,9 +45,11 @@ router.get('/sample', async (req, res, next) => {
 /**
  * GET /users/sample/:id
  */
-router.get('/sample/:id', async (req, res, next) => {
+router.get('/sample/:id', validate([
+  param('id').isInt({ min: 1 }).toInt()
+]), async (req, res, next) => {
   try {
-    const userId = parseInt(req.params.id, 10);
+    const { id: userId } = matchedData(req, { locations: ['params'] });
 
     const users = await getFooBar({
       limit: 1,
@@ -67,13 +73,16 @@ router.get('/sample/:id', async (req, res, next) => {
 /**
  * POST /users/sample
  */
-router.post('/sample', async (req, res, next) => {
+router.post('/sample', validate([
+  body('message').trim().isLength({ min: 1, max: 255 }),
+  body('comment').trim().isLength({ min: 1, max: 255 })
+]), async (req, res, next) => {
   try {
+    const { message, comment } = matchedData(req, { locations: ['body'] });
     const result = await createFoobar(
-      { message: 'Hello, World!' },
-      { comment: 'Hey, there!' }
+      { message },
+      { comment }
     );
-    console.log('success: ', result);
     res.success('success', result);
   } catch (error) {
     next(error);

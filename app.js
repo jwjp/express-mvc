@@ -12,22 +12,77 @@ const { rateLimit } = require('express-rate-limit');
 const { slowDown } = require('express-slow-down');
 const compression = require("compression");
 const responseHandler = require("./middleware/responseHandler");
-const speedLimiter = slowDown({ windowMs: 15 * 60 * 1000, delayAfter: 50, delayMs: () => 2000 });
-const rateLimiter = rateLimit({ windowMs: 15 * 60 * 1000 /* 15 minutes */, limit: 100 });
 require('dotenv').config();
 
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production';
+const sessionSecret = process.env.SESSION_SECRET;
+const weakSessionSecrets = new Set([
+  'YOUR_SESSION_SECRET',
+  'change-me-to-a-long-random-secret'
+]);
+
+if (isProduction && (!sessionSecret || weakSessionSecrets.has(sessionSecret))) {
+  throw new Error('SESSION_SECRET must be set to a strong value in production.');
+}
+
+const parseList = (value) => (value || '')
+  .split(',')
+  .map(item => item.trim())
+  .filter(Boolean);
+
+const toPositiveInteger = (value, fallback) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const parseTrustProxy = (value) => {
+  if (!value) return undefined;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : value;
+};
+
+const allowedOrigins = parseList(process.env.CORS_ORIGINS);
+const speedLimiter = slowDown({
+  windowMs: 15 * 60 * 1000,
+  delayAfter: toPositiveInteger(process.env.SLOW_DOWN_AFTER, 50),
+  delayMs: () => toPositiveInteger(process.env.SLOW_DOWN_DELAY_MS, 2000)
+});
+const rateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: toPositiveInteger(process.env.RATE_LIMIT, 100),
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+if (trustProxy !== undefined) {
+  app.set('trust proxy', trustProxy);
+}
 
 // 0. Compression
 app.use(compression());
 
 // 1. Security
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || (!isProduction && allowedOrigins.length === 0)) {
+      return callback(null, true);
+    }
+    const error = new Error('Not allowed by CORS');
+    error.statusCode = 403;
+    return callback(error);
+  },
+  credentials: true
+}));
 
 // 2. Parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: process.env.JSON_LIMIT || '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: process.env.FORM_LIMIT || '1mb' }));
 app.use(cookieParser());
 
 // 3. Session
@@ -36,11 +91,14 @@ app.use(session({
     retries: 0,
     ttl: 12 * 60 * 60, // 12 hours
   }),
-  secret: process.env.SESSION_SECRET,
+  secret: sessionSecret || 'development-only-session-secret',
+  name: process.env.SESSION_NAME || 'sid',
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false,
   cookie: {
-    secure: false,
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'lax' : 'strict',
     maxAge: 60 * 60 * 1000 * 12, // 12 hours
   }
 }));
@@ -81,7 +139,19 @@ app.use((req, res, next) => {
 // 10. Error
 app.use((err, req, res, next) => {
   logger.error(err?.stack);
-  res.error(err?.message || 'Internal Server Error', err?.statusCode || 500);
+  const status = err?.statusCode || err?.status || 500;
+  const message = status >= 500 && isProduction
+    ? 'Internal Server Error'
+    : err?.message || 'Internal Server Error';
+
+  if (typeof res.error === 'function') {
+    return res.error(message, status);
+  }
+
+  return res.status(status).json({
+    success: false,
+    message
+  });
 });
 
 module.exports = app;

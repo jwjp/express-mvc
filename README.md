@@ -11,11 +11,11 @@ A robust MVC-style boilerplate for Express.js applications with built-in securit
 
 - **Security First 🔒**
     - Helmet.js integration
-    - CORS enabled
+    - Configurable CORS allowlist
     - Rate limiting
     - Speed limiting
     - Session management with file store
-    - CSRF protection via cookies
+    - Request payload size limits
 
 - **Advanced Logging 📝**
     - Winston logger with daily rotate
@@ -90,7 +90,15 @@ DB_HOST=localhost
 DB_NAME=sample
 DB_USERNAME=root
 DB_PASSWORD=root
-SESSION_SECRET=YOUR_SESSION_SECRET
+SESSION_SECRET=change-me-to-a-long-random-secret
+CORS_ORIGINS=http://localhost:3000
+TRUST_PROXY=
+RATE_LIMIT=100
+SLOW_DOWN_AFTER=50
+SLOW_DOWN_DELAY_MS=2000
+JSON_LIMIT=1mb
+FORM_LIMIT=1mb
+ALLOWED_IPS=
 ```
 
 
@@ -109,7 +117,11 @@ The following features are prepared but optional:
 - Rate limiting: 100 requests per 15 minutes
 - Speed limiting: Delay after 50 requests
 - Session management with FileStore
-- CORS protection
+- CORS allowlist via `CORS_ORIGINS`
+- JSON and form payload size limits
+
+In production, set `SESSION_SECRET` to a strong non-default value. If the app runs behind a reverse proxy that terminates HTTPS, set `TRUST_PROXY` to the proxy hop count, for example `1`.
+`ALLOWED_IPS` is optional and should contain only trusted IPs that may bypass authentication.
 
 ## 📝 Logging
 

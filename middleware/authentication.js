@@ -2,6 +2,11 @@
 // TODO: check login
 const { logger } = require("../modules/logger");
 
+const parseList = (value) => (value || '')
+  .split(',')
+  .map(item => item.trim())
+  .filter(Boolean);
+
 const authentication = (req, res, next) => {
   if (process.env.NODE_ENV === 'development') {
     return next();
@@ -27,23 +32,23 @@ const authentication = (req, res, next) => {
   }
 
   // ip
-  const ip = req.ip ||
-    req.headers['x-forwarded-for'] ||
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+    req.ip ||
     req.headers['x-real-ip'] ||
     req.connection.remoteAddress ||
     req.socket.remoteAddress;
 
   // allowed ip
-  const allowedIps = ['*'];
+  const allowedIps = parseList(process.env.ALLOWED_IPS);
+  const isPublicPath = publicPaths.some(path =>
+    urlWithoutQuery === '' ||
+    urlWithoutQuery === '/' ||
+    urlWithoutQuery.startsWith(path)
+  );
+  const isAllowedIp = allowedIps.includes('*') || allowedIps.includes(ip);
 
   // pass
-  if (publicPaths.some(path =>
-      urlWithoutQuery === '' ||   // /index
-      urlWithoutQuery === '/' ||  // /index/
-      urlWithoutQuery.startsWith(path)
-    ) &&
-    allowedIps.includes('*') ||
-    allowedIps.includes(ip)) {
+  if (isPublicPath || isAllowedIp) {
     return next();
   }
 

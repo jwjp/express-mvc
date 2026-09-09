@@ -2,6 +2,7 @@
 const winston = require('winston');
 const winstonDaily = require('winston-daily-rotate-file');
 const path = require('path');
+const loggerCache = new Map();
 
 // logger
 const logger = winston.createLogger({
@@ -37,7 +38,11 @@ const logger = winston.createLogger({
 
 // create logger with file
 const createLogger = (folder) => {
-  return winston.createLogger({
+  if (loggerCache.has(folder)) {
+    return loggerCache.get(folder);
+  }
+
+  const scopedLogger = winston.createLogger({
     format: winston.format.combine(
       winston.format.timestamp({
         format: 'YYYY-MM-DD HH:mm:ss'
@@ -55,6 +60,9 @@ const createLogger = (folder) => {
       })
     ]
   });
-}
+
+  loggerCache.set(folder, scopedLogger);
+  return scopedLogger;
+};
 
 module.exports = { logger, createLogger };

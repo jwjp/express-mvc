@@ -1,5 +1,4 @@
-// middleware/loader.js
-const express = require('express');
+// middleware/routerLoader.js
 const path = require('path');
 const fs = require('fs');
 const { logger } = require('../modules/logger');
@@ -8,14 +7,17 @@ const { logger } = require('../modules/logger');
 const registerRoute = (app, fullPath, cleanRoute) => {
   try {
     const routeModule = require(fullPath);
-    if (routeModule.router) {
-      app.use(cleanRoute, routeModule.router);
-    } else if (typeof routeModule === 'function' || routeModule instanceof express.Router) {
-      app.use(cleanRoute, routeModule);
+    const routeHandler = routeModule.router || routeModule;
+
+    if (typeof routeHandler !== 'function') {
+      throw new TypeError(`Route module must export a router or middleware function: ${fullPath}`);
     }
-    logger.info(`🚀 Route registered: ${cleanRoute} (${fullPath})`);
+
+    app.use(cleanRoute, routeHandler);
+    logger.info(`Route registered: ${cleanRoute} (${fullPath})`);
   } catch (err) {
-    logger.error(`❌ Error loading route ${fullPath}:`, err.message);
+    logger.error(`Error loading route ${fullPath}: ${err.message}`);
+    throw err;
   }
 };
 

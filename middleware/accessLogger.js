@@ -3,18 +3,26 @@ const morgan = require('morgan');
 const {logger} = require("../modules/logger");
 const path = require("path");
 
+const sanitizeLogValue = (value) => {
+  if (Array.isArray(value)) {
+    value = value[0];
+  }
+
+  return String(value || '-').replace(/[\r\n\u2028\u2029]/g, ' ');
+};
+
 // morgan ip token
 morgan.token('real-ip', (req) => {
-  return req.ip ||
+  return sanitizeLogValue(req.ip ||
     req.headers['x-forwarded-for'] ||
     req.headers['x-real-ip'] ||
     req.connection.remoteAddress ||
-    req.socket.remoteAddress;
+    req.socket.remoteAddress);
 });
 
 // morgan session token
 morgan.token('user-id', (req) => {
-  return req.session?.user_id || '-';
+  return sanitizeLogValue(req.session?.user_id);
 });
 
 const accessLogger = morgan(':real-ip [:user-id] :method :url :status :response-time ms', {

@@ -32,8 +32,8 @@ const authentication = (req, res, next) => {
   }
 
   // ip
-  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-    req.ip ||
+  const ip = req.ip ||
+    req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
     req.headers['x-real-ip'] ||
     req.connection.remoteAddress ||
     req.socket.remoteAddress;

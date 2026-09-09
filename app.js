@@ -62,6 +62,7 @@ const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
 if (trustProxy !== undefined) {
   app.set('trust proxy', trustProxy);
 }
+app.disable('x-powered-by');
 
 // 0. Compression
 app.use(compression());
@@ -138,11 +139,16 @@ app.use((req, res, next) => {
 
 // 10. Error
 app.use((err, req, res, next) => {
-  logger.error(err?.stack);
   const status = err?.statusCode || err?.status || 500;
   const message = status >= 500 && isProduction
     ? 'Internal Server Error'
     : err?.message || 'Internal Server Error';
+
+  if (status >= 500) {
+    logger.error(err?.stack || message);
+  } else {
+    logger.warn(`${status} ${message}`);
+  }
 
   if (typeof res.error === 'function') {
     return res.error(message, status);

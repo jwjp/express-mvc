@@ -8,7 +8,11 @@ let pool = null;
 
 // logging - !SELECT
 const logQuery = (query, params) => {
-  if (!query.trim().toUpperCase().startsWith('SELECT')) {
+  if (
+    process.env.QUERY_LOG_ENABLED === 'true' &&
+    typeof query === 'string' &&
+    !query.trim().toUpperCase().startsWith('SELECT')
+  ) {
     createLogger('query').info(mysql.format(query, params));
   }
 };

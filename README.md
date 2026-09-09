@@ -74,6 +74,10 @@ cp .env.example .env
 pm2 start ecosystem.config.js --only express-mvc/development
 ```
 
+### Test
+```shell script
+npm test
+```
 
 ### Production Mode
 ```shell script
@@ -99,6 +103,7 @@ SLOW_DOWN_DELAY_MS=2000
 JSON_LIMIT=1mb
 FORM_LIMIT=1mb
 ALLOWED_IPS=
+QUERY_LOG_ENABLED=false
 ```
 
 
@@ -122,6 +127,7 @@ The following features are prepared but optional:
 
 In production, set `SESSION_SECRET` to a strong non-default value. If the app runs behind a reverse proxy that terminates HTTPS, set `TRUST_PROXY` to the proxy hop count, for example `1`.
 `ALLOWED_IPS` is optional and should contain only trusted IPs that may bypass authentication.
+Set `QUERY_LOG_ENABLED=true` only when non-SELECT SQL logging is acceptable for the environment.
 
 ## 📝 Logging
 
